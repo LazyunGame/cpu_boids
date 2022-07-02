@@ -104,10 +104,10 @@ namespace FlockJobSystem
                 accelerate += Reach(position, setting.goal, 0.01f);
             }
 
-            accelerate += Alignment(position);
-            accelerate += Cohesion(position);
-            accelerate += Separation(position);
-
+            // accelerate += Alignment(position);
+            // accelerate += Cohesion(position);
+            // accelerate += Separation(position);
+            accelerate += AlignmentCohesionAndSeparation(position);
             accelerates[index] = accelerate;
         }
 
@@ -116,10 +116,15 @@ namespace FlockJobSystem
             return (target - pos) * amount;
         }
 
-        public float3 Alignment(float3 pos)
+        public float3 AlignmentCohesionAndSeparation(float3 pos)
         {
             var count = 0;
             var velSum = float3.zero;
+            var steer = float3.zero;
+            var posSum = float3.zero;
+            var posSum1 = float3.zero;
+
+            var repulse = float3.zero;
 
             for (int i = 0, il = positionsForIndex.Length; i < il; i++)
             {
@@ -131,6 +136,11 @@ namespace FlockJobSystem
                 if (distance > 0 && distance <= setting.neighborRadius)
                 {
                     velSum += boidVel;
+                    posSum += boidPos;
+
+                    repulse = math.normalize(pos - boidPos);
+                    repulse /= distance;
+                    posSum1 += repulse;
                     count++;
                 }
             }
@@ -138,6 +148,7 @@ namespace FlockJobSystem
             if (count > 0)
             {
                 velSum /= count;
+                posSum /= count;
                 var l = math.length(velSum);
                 if (l > setting.maxSteerForce)
                 {
@@ -145,61 +156,15 @@ namespace FlockJobSystem
                 }
             }
 
-            return velSum;
-        }
-
-        public float3 Cohesion(float3 pos)
-        {
-            var count = 0;
-            var posSum = float3.zero;
-            var steer = float3.zero;
-            for (int i = 0, il = acceleratesForIndex.Length; i < il; i++)
-            {
-                if (Random.CreateFromIndex((uint) i).NextFloat(0, 1f) > 0.6f)
-                    continue;
-                var boidPos = positionsForIndex[i];
-                var distance = math.length(boidPos - pos);
-                if (distance > 0 && distance <= setting.neighborRadius)
-                {
-                    posSum += boidPos;
-                    count++;
-                }
-            }
-
-            if (count > 0)
-            {
-                posSum /= count;
-            }
-
             steer = posSum - pos;
-            var l = math.length(steer);
-            if (l > setting.maxSteerForce)
+            var l1 = math.length(steer);
+            if (l1 > setting.maxSteerForce)
             {
-                steer /= l / setting.maxSteerForce;
+                steer /= l1 / setting.maxSteerForce;
             }
 
-            return steer;
-        }
 
-        public float3 Separation(float3 pos)
-        {
-            var posSum = float3.zero;
-            var repulse = float3.zero;
-            for (int i = 0, il = acceleratesForIndex.Length; i < il; i++)
-            {
-                if (Random.CreateFromIndex((uint) i).NextFloat(0, 1f) > 0.6f)
-                    continue;
-                var boidPos = positionsForIndex[i];
-                var distance = math.length(boidPos - pos);
-                if (distance > 0 && distance <= setting.neighborRadius)
-                {
-                    repulse = math.normalize(pos - boidPos);
-                    repulse /= distance;
-                    posSum += repulse;
-                }
-            }
-
-            return posSum;
+            return steer + velSum + posSum1;
         }
     }
 
